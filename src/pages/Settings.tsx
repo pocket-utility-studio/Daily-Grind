@@ -31,7 +31,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `canopy-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `dailygrind-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
     setExportFb('saved')
@@ -67,21 +67,36 @@ export default function Settings() {
   const inputStyle: React.CSSProperties = {
     width: '100%',
     background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 6,
+    border: '2px solid var(--border)',
+    borderRadius: 10,
     color: 'var(--text)',
     fontSize: 14,
-    padding: '12px',
+    padding: '13px 14px',
     outline: 'none',
     fontFamily: 'monospace',
   }
 
   const sectionLabel: React.CSSProperties = {
-    fontSize: 11,
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    color: 'var(--text-muted)',
-    margin: '0 0 10px',
+    fontFamily: "'Caveat', cursive",
+    fontSize: 20,
+    fontWeight: 700,
+    color: 'var(--text)',
+    margin: '0 0 12px',
+    display: 'block',
+  }
+
+  const outlineBtn: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--surface)',
+    border: '2px solid var(--border)',
+    borderRadius: 10,
+    boxShadow: 'var(--shadow-sm)',
+    color: 'var(--text)',
+    fontSize: 14,
+    fontWeight: 600,
+    minHeight: 50,
+    cursor: 'pointer',
+    justifyContent: 'center',
   }
 
   return (
@@ -90,7 +105,7 @@ export default function Settings() {
 
       {/* API Key */}
       <section style={{ marginBottom: 32 }}>
-        <p style={sectionLabel}>Gemini API key</p>
+        <span style={sectionLabel}>Gemini API key</span>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
           Required for AI recommendations and strain lookup. Get a free key at aistudio.google.com.
         </p>
@@ -107,49 +122,43 @@ export default function Settings() {
             marginTop: 10,
             width: '100%',
             background: keySaved ? 'var(--accent-dim)' : 'var(--accent)',
-            border: 'none',
-            borderRadius: 6,
-            color: '#fff',
+            border: `2px solid ${keySaved ? 'var(--accent)' : 'var(--border)'}`,
+            boxShadow: keySaved ? 'none' : 'var(--shadow)',
+            borderRadius: 10,
+            color: keySaved ? 'var(--accent)' : '#fff',
             fontSize: 14,
-            fontWeight: 600,
-            minHeight: 48,
+            fontWeight: 700,
+            minHeight: 50,
             cursor: 'pointer',
+            justifyContent: 'center',
           }}
         >
-          {keySaved ? 'Saved' : 'Save key'}
+          {keySaved ? 'Saved ✓' : 'Save key'}
         </button>
       </section>
 
       {/* Data */}
       <section style={{ marginBottom: 32 }}>
-        <p style={sectionLabel}>Data</p>
+        <span style={sectionLabel}>Data</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             onClick={exportData}
             style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 6,
+              ...outlineBtn,
               color: exportFb === 'saved' ? 'var(--accent)' : 'var(--text)',
-              fontSize: 14,
-              minHeight: 48,
-              cursor: 'pointer',
+              borderColor: exportFb === 'saved' ? 'var(--accent)' : 'var(--border)',
             }}
           >
-            {exportFb === 'saved' ? 'Exported' : 'Export backup'}
+            {exportFb === 'saved' ? 'Exported ✓' : 'Export backup'}
           </button>
 
           <label style={{
+            ...outlineBtn,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
             color: importFb === 'loaded' ? 'var(--accent)' : importFb === 'error' ? '#e05555' : 'var(--text)',
-            fontSize: 14,
-            minHeight: 48,
-            cursor: 'pointer',
+            borderColor: importFb === 'loaded' ? 'var(--accent)' : importFb === 'error' ? '#e05555' : 'var(--border)',
           }}>
             {importFb === 'loaded' ? 'Imported — reloading...' : importFb === 'error' ? 'Invalid file' : 'Import backup'}
             <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
@@ -157,41 +166,37 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Version */}
       <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 32px' }}>
         Version {__APP_VERSION__}
       </p>
 
-      {/* Clear data */}
+      {/* Danger zone */}
       <section>
-        <p style={sectionLabel}>Danger zone</p>
+        <span style={{ ...sectionLabel, color: '#c03333' }}>Danger zone</span>
         {!confirmClear ? (
           <button
             onClick={() => setConfirmClear(true)}
-            style={{
-              width: '100%',
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              color: 'var(--text-muted)',
-              fontSize: 14,
-              minHeight: 48,
-              cursor: 'pointer',
-            }}
+            style={{ ...outlineBtn, color: 'var(--text-muted)', borderColor: 'var(--text-dim)' }}
           >
             Clear all data
           </button>
         ) : (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               onClick={() => setConfirmClear(false)}
-              style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 14, minHeight: 48, cursor: 'pointer' }}
+              style={{ flex: 1, background: 'var(--surface)', border: '2px solid var(--border)', borderRadius: 10, color: 'var(--text-muted)', fontSize: 14, minHeight: 50, cursor: 'pointer' }}
             >
               Cancel
             </button>
             <button
               onClick={clearData}
-              style={{ flex: 1, background: '#5a1a1a', border: 'none', borderRadius: 6, color: '#ffaaaa', fontSize: 14, fontWeight: 600, minHeight: 48, cursor: 'pointer' }}
+              style={{
+                flex: 1, background: '#e05555',
+                border: '2px solid #c03333',
+                boxShadow: '3px 3px 0 #c03333',
+                borderRadius: 10, color: '#fff',
+                fontSize: 14, fontWeight: 700, minHeight: 50, cursor: 'pointer',
+              }}
             >
               Confirm clear
             </button>
