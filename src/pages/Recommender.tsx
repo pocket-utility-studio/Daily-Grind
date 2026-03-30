@@ -166,34 +166,33 @@ export default function Recommender() {
   )
 }
 
-const SECTIONS = ['RECOMMENDATION', 'TERPENE SCIENCE', 'TEMPERATURE GUIDE', 'STRAIN HISTORY', 'WHAT TO EXPECT']
+const SECTIONS = ['RECOMMENDATION', 'TERPENES', 'TEMPERATURE', 'HISTORY', 'EXPECT']
 
 function ResponseDisplay({ text }: { text: string }) {
   const blocks = parseResponse(text)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
       {blocks.map((block, i) => (
         <div
           key={i}
           style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: '16px',
+            padding: '14px 16px',
+            borderBottom: i < blocks.length - 1 ? '1px solid var(--border)' : 'none',
           }}
         >
-          <p style={{
+          <span style={{
             fontSize: 10,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
             color: 'var(--accent)',
-            margin: '0 0 10px',
             fontWeight: 600,
+            display: 'block',
+            marginBottom: 6,
           }}>
             {block.heading}
-          </p>
-          <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65, margin: 0 }}>
+          </span>
+          <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, margin: 0 }}>
             {block.body}
           </p>
         </div>
