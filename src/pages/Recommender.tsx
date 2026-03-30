@@ -27,13 +27,6 @@ function detectTimeOfDay(): TimeOfDay {
   return 'night'
 }
 
-const TIME_LABELS: Record<TimeOfDay, string> = {
-  morning:   'Morning',
-  afternoon: 'Afternoon',
-  evening:   'Evening',
-  night:     'Night',
-}
-
 const SEVERITY_OPTIONS: { value: Severity; label: string; desc: string }[] = [
   { value: 'low',    label: 'Low',    desc: 'Mild — time of day respected' },
   { value: 'medium', label: 'Medium', desc: 'Moderate — flexible approach' },
@@ -47,7 +40,7 @@ export default function Recommender() {
 
   const [selected, setSelected] = useState<string[]>([])
   const [freeText, setFreeText] = useState('')
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(detectTimeOfDay)
+  const [timeOfDay] = useState<TimeOfDay>(detectTimeOfDay)
   const [severity, setSeverity] = useState<Severity>('low')
   const [status, setStatus] = useState<Status>('idle')
   const [response, setResponse] = useState('')
@@ -136,31 +129,6 @@ export default function Recommender() {
                 </button>
               )
             })}
-          </div>
-
-          {/* Time of day */}
-          <div style={{ marginBottom: 24 }}>
-            <p style={labelStyle}>Time of day</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(Object.keys(TIME_LABELS) as TimeOfDay[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTimeOfDay(t)}
-                  style={{
-                    flex: 1,
-                    background: timeOfDay === t ? 'var(--accent-dim)' : 'var(--surface)',
-                    border: `1px solid ${timeOfDay === t ? 'var(--accent)' : 'var(--border)'}`,
-                    borderRadius: 8,
-                    color: timeOfDay === t ? 'var(--text)' : 'var(--text-muted)',
-                    fontSize: 12,
-                    minHeight: 44,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {TIME_LABELS[t]}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Symptom severity */}
