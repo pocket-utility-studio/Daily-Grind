@@ -41,14 +41,14 @@ function Home() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: 700,
-            letterSpacing: '0.22em',
+            letterSpacing: '0.12em',
             margin: '0 0 8px',
             color: 'var(--text)',
             textTransform: 'uppercase',
           }}>
-            Canopy
+            Effect Locator
           </h1>
           <div style={{ width: 28, height: 2, background: 'var(--accent)', borderRadius: 2, margin: '0 auto' }} />
         </div>
