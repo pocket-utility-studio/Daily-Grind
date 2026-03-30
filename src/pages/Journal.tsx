@@ -76,13 +76,14 @@ export default function Journal() {
   )
 }
 
+const TYPE_COLOR: Record<string, string> = {
+  sativa: '#6aaa40',
+  indica: '#7060c0',
+  hybrid: '#c08030',
+}
+
 function StrainRow({ strain, onTap }: { strain: StrainEntry; onTap: () => void }) {
-  const typeColor: Record<string, string> = {
-    sativa: '#6aaa40',
-    indica: '#7060c0',
-    hybrid: '#c08030',
-  }
-  const color = strain.type ? typeColor[strain.type] : 'var(--text-dim)'
+  const accentColor = strain.type ? TYPE_COLOR[strain.type] : 'var(--border)'
 
   return (
     <button
@@ -90,35 +91,48 @@ function StrainRow({ strain, onTap }: { strain: StrainEntry; onTap: () => void }
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 14,
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 8,
+        borderLeft: `3px solid ${accentColor}`,
+        borderRadius: 10,
         padding: '14px 16px',
         width: '100%',
         textAlign: 'left',
         cursor: 'pointer',
-        minHeight: 44,
+        minHeight: 62,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)', marginBottom: 2 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
           {strain.name}
         </div>
-        {strain.notes && (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {strain.notes}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {strain.type && (
+            <span style={{
+              fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase',
+              color: accentColor, fontWeight: 600,
+            }}>
+              {strain.type}
+            </span>
+          )}
+          {strain.thc != null && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>THC {strain.thc}%</span>
+          )}
+          {strain.cbd != null && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>CBD {strain.cbd}%</span>
+          )}
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-        {strain.thc != null && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{strain.thc}% THC</span>
-        )}
-        {strain.type && (
-          <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color }}>{strain.type}</span>
-        )}
-      </div>
+      {strain.notes && (
+        <div style={{
+          fontSize: 12, color: 'var(--text-dim)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          maxWidth: '35%', flexShrink: 0,
+        }}>
+          {strain.notes}
+        </div>
+      )}
     </button>
   )
 }

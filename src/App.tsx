@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { Settings, BookOpen, Sparkles, ClipboardList, Compass, ChevronRight } from 'lucide-react'
 import { useStash } from './context/StashContext'
 import Journal from './pages/Journal'
 import Recommender from './pages/Recommender'
@@ -12,26 +12,10 @@ import LawGuide from './pages/LawGuide'
 import SettingsPage from './pages/Settings'
 
 const HUB_CARDS = [
-  {
-    to: '/journal',
-    label: 'My Journal',
-    desc: 'Browse and manage your stash',
-  },
-  {
-    to: '/recommend',
-    label: 'Get AI Advice',
-    desc: 'Personalised strain recommendation',
-  },
-  {
-    to: '/sessions',
-    label: 'Sessions',
-    desc: 'Log and review your usage',
-  },
-  {
-    to: '/guide',
-    label: 'Guides',
-    desc: 'Temperature, AVB, calm down, law',
-  },
+  { to: '/journal',   label: 'My Journal',    desc: '',                                  Icon: BookOpen },
+  { to: '/recommend', label: 'Get AI Advice', desc: 'Personalised strain recommendation', Icon: Sparkles },
+  { to: '/sessions',  label: 'Sessions',      desc: 'Log and review your usage',          Icon: ClipboardList },
+  { to: '/guide',     label: 'Guides',        desc: 'Temperature, AVB, calm down, law',   Icon: Compass },
 ]
 
 function Home() {
@@ -47,24 +31,28 @@ function Home() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Hub header */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
-        padding: '20px 16px 0',
+        padding: '28px 16px 0',
       }}>
-        <h1 style={{
-          fontSize: 18,
-          fontWeight: 700,
-          letterSpacing: '0.18em',
-          margin: 0,
-          color: 'var(--text)',
-          textTransform: 'uppercase',
-        }}>
-          Canopy
-        </h1>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: '0.22em',
+            margin: '0 0 8px',
+            color: 'var(--text)',
+            textTransform: 'uppercase',
+          }}>
+            Canopy
+          </h1>
+          <div style={{ width: 28, height: 2, background: 'var(--accent)', borderRadius: 2, margin: '0 auto' }} />
+        </div>
+
         <button
           onClick={() => navigate('/settings')}
           style={{
@@ -72,7 +60,7 @@ function Home() {
             right: 8,
             background: 'none',
             border: 'none',
-            color: 'var(--text-muted)',
+            color: 'var(--text-dim)',
             cursor: 'pointer',
             minHeight: 44,
             minWidth: 44,
@@ -81,11 +69,11 @@ function Home() {
             justifyContent: 'center',
           }}
         >
-          <Settings size={20} strokeWidth={1.75} />
+          <Settings size={19} strokeWidth={1.75} />
         </button>
       </div>
 
-      {/* Hub cards */}
+      {/* Cards */}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -93,7 +81,7 @@ function Home() {
         gap: 10,
         padding: '28px 16px 32px',
       }}>
-        {cards.map(({ to, label, desc }) => (
+        {cards.map(({ to, label, desc, Icon }) => (
           <button
             key={to}
             onClick={() => navigate(to)}
@@ -101,28 +89,40 @@ function Home() {
               flex: 1,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
               background: 'var(--surface)',
               border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '0 20px',
+              borderRadius: 14,
+              padding: '0 16px',
               width: '100%',
               textAlign: 'left',
               cursor: 'pointer',
-              minHeight: 80,
+              minHeight: 72,
+              gap: 14,
             }}
           >
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: 'var(--accent-glow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Icon size={19} color="var(--accent)" strokeWidth={1.75} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>
                 {label}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
                 {desc}
               </div>
             </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: 12 }}>
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
+
+            <ChevronRight size={16} color="var(--text-dim)" strokeWidth={2.5} style={{ flexShrink: 0 }} />
           </button>
         ))}
       </div>
