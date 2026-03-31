@@ -33,49 +33,22 @@ function Home() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
+        textAlign: 'center',
         padding: '32px 16px 0',
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{
-            fontFamily: "'Caveat', cursive",
-            fontSize: 36,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            margin: '0 0 6px',
-            color: 'var(--text)',
-          }}>
-            Daily Grind
-          </h1>
-          <svg width="52" height="7" viewBox="0 0 52 7" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
-              <path d="M1 5 C6 2.5, 13 6, 21 3.5 C29 1, 37 5.5, 44 3 C47 2, 50 3.5, 51 4" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-        </div>
-
-        <button
-          onClick={() => navigate('/settings')}
-          style={{
-            position: 'absolute',
-            right: 12,
-            background: 'var(--surface)',
-            border: '2px solid var(--border)',
-            borderRadius: '50%',
-            boxShadow: 'var(--shadow-sm)',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            minHeight: 'unset',
-            width: 40,
-            height: 40,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Settings size={18} strokeWidth={2} />
-        </button>
+        <h1 style={{
+          fontFamily: "'Caveat', cursive",
+          fontSize: 36,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          margin: '0 0 6px',
+          color: 'var(--text)',
+        }}>
+          Daily Grind
+        </h1>
+        <svg width="52" height="7" viewBox="0 0 52 7" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
+          <path d="M1 5 C6 2.5, 13 6, 21 3.5 C29 1, 37 5.5, 44 3 C47 2, 50 3.5, 51 4" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
       </div>
 
       {/* Cards */}
@@ -135,16 +108,36 @@ function Home() {
           </button>
         ))}
       </div>
-      <p style={{
-        textAlign: 'center',
-        fontSize: 11,
-        color: 'var(--text-dim)',
-        padding: '0 0 20px',
-        margin: 0,
-        fontFamily: 'monospace',
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        padding: '8px 0 24px',
       }}>
-        v{__APP_VERSION__}
-      </p>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{
+            background: 'var(--surface)',
+            border: '2px solid var(--border)',
+            borderRadius: '50%',
+            boxShadow: 'var(--shadow-sm)',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            minHeight: 'unset',
+            width: 40,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Settings size={18} strokeWidth={2} />
+        </button>
+        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
+          v{__APP_VERSION__}
+        </span>
+      </div>
     </div>
   )
 }
