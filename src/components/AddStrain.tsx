@@ -219,7 +219,7 @@ export default function AddStrain({ onClose }: Props) {
           }}
         >
           {scanning ? (
-            <><DiamondSpinner size={36} /><span style={{ fontSize: 13 }}>Reading label…</span></>
+            <><DiamondSpinner size={52} /><span style={{ fontSize: 13 }}>Reading label…</span></>
           ) : (
             <>
               <Camera size={28} strokeWidth={1.5} />
