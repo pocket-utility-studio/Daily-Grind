@@ -93,7 +93,7 @@ export default function Recommender() {
 
   return (
     <div style={{ padding: '20px 16px 40px' }}>
-      <PageHeader title="Get AI Advice" onBack={() => navigate('/')} />
+      <PageHeader title="Cyber-Botanist" onBack={() => navigate('/')} />
 
       {inStock.length === 0 ? (
         <div style={{

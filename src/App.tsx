@@ -12,10 +12,10 @@ import LawGuide from './pages/LawGuide'
 import SettingsPage from './pages/Settings'
 
 const HUB_CARDS = [
-  { to: '/journal',   label: 'My Journal',    desc: '',                                   Icon: BookOpen },
-  { to: '/recommend', label: 'Get AI Advice', desc: 'Personalised strain recommendation', Icon: Sparkles },
-  { to: '/sessions',  label: 'Sessions',      desc: 'Log and review your usage',           Icon: ClipboardList },
-  { to: '/guide',     label: 'Guides',        desc: 'Temperature, AVB, calm down, law',    Icon: Compass },
+  { to: '/journal',   label: 'The Stashbox',          desc: '',                                    Icon: BookOpen },
+  { to: '/recommend', label: 'Ask the Cyber-Botanist', desc: 'Algorithmic strain matchmaking',     Icon: Sparkles },
+  { to: '/sessions',  label: 'Field Notes',            desc: 'Sketch out your daily doses',         Icon: ClipboardList },
+  { to: '/guide',     label: 'Cheat Sheets',           desc: 'Temps, tips, and the fine print',     Icon: Compass },
 ]
 
 function Home() {
@@ -25,7 +25,7 @@ function Home() {
 
   const cards = HUB_CARDS.map((c) =>
     c.to === '/journal'
-      ? { ...c, desc: `${inStock} strain${inStock !== 1 ? 's' : ''} in stash` }
+      ? { ...c, desc: `${inStock} strain${inStock !== 1 ? 's' : ''} currently on hand` }
       : c
   )
 
@@ -50,7 +50,9 @@ function Home() {
           }}>
             Daily Grind
           </h1>
-          <div style={{ width: 40, height: 3, background: 'var(--accent)', margin: '0 auto' }} />
+          <svg width="52" height="7" viewBox="0 0 52 7" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', margin: '0 auto' }}>
+              <path d="M1 5 C6 2.5, 13 6, 21 3.5 C29 1, 37 5.5, 44 3 C47 2, 50 3.5, 51 4" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
         </div>
 
         <button
@@ -80,11 +82,16 @@ function Home() {
         flexDirection: 'column',
         gap: 12,
         padding: '28px 16px 32px',
+        maxWidth: 600,
+        width: '100%',
+        margin: '0 auto',
+        alignSelf: 'center',
       }}>
         {cards.map(({ to, label, desc, Icon }) => (
           <button
             key={to}
             onClick={() => navigate(to)}
+            className="hub-card"
             style={{
               flex: 1,
               display: 'flex',
@@ -128,6 +135,16 @@ function Home() {
           </button>
         ))}
       </div>
+      <p style={{
+        textAlign: 'center',
+        fontSize: 11,
+        color: 'var(--text-dim)',
+        padding: '0 0 20px',
+        margin: 0,
+        fontFamily: 'monospace',
+      }}>
+        v{__APP_VERSION__}
+      </p>
     </div>
   )
 }
@@ -141,7 +158,7 @@ export default function App() {
         height: '100%',
         overflowY: 'auto',
         background: 'var(--bg)',
-        maxWidth: 480,
+        maxWidth: 640,
         margin: '0 auto',
       }}>
         <Routes>

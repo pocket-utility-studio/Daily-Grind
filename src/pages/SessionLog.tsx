@@ -212,7 +212,7 @@ export default function SessionLog() {
   return (
     <div style={{ padding: '20px 16px 40px' }}>
       <PageHeader
-        title="Sessions"
+        title="Field Notes"
         onBack={() => navigate('/')}
         right={
           <button

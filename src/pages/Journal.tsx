@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useStash, type StrainEntry } from '../context/StashContext'
 import AddStrain from '../components/AddStrain'
 import StrainDetail from '../components/StrainDetail'
+import StrainSearch from '../components/StrainSearch'
 import PageHeader from '../components/PageHeader'
 
 export default function Journal() {
   const navigate = useNavigate()
   const { strains, loading } = useStash()
   const [adding, setAdding] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<StrainEntry | null>(null)
 
   if (loading) return <p style={{ color: 'var(--text-muted)', fontSize: 14, padding: 16 }}>Loading...</p>
 
   if (adding) return <AddStrain onClose={() => setAdding(false)} />
+  if (searching) return <StrainSearch onClose={() => setSearching(false)} />
   if (selected) return <StrainDetail strain={selected} onClose={() => setSelected(null)} />
 
   const inStock = strains.filter((s) => s.inStock)
@@ -23,27 +26,49 @@ export default function Journal() {
   return (
     <div style={{ padding: '20px 16px 40px' }}>
       <PageHeader
-        title="My Journal"
+        title="The Stashbox"
         onBack={() => navigate('/')}
         right={
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              width: 44,
-              height: 44,
-              minHeight: 44,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setSearching(true)}
+              title="Search strains with AI"
+              style={{
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                border: '2px solid var(--border)',
+                borderRadius: 8,
+                width: 44,
+                height: 44,
+                minHeight: 44,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <Search size={17} strokeWidth={2} />
+            </button>
+            <button
+              onClick={() => setAdding(true)}
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                width: 44,
+                height: 44,
+                minHeight: 44,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
         }
       />
 
