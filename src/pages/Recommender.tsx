@@ -290,7 +290,6 @@ export default function Recommender() {
               boxShadow: query && status !== 'loading' ? 'var(--shadow)' : 'none',
               color: query && status !== 'loading' ? '#fff' : 'var(--text-muted)',
               borderRadius: 12,
-              color: '#fff',
               fontSize: 15,
               fontWeight: 700,
               minHeight: 54,
