@@ -108,7 +108,7 @@ export default function Recommender() {
   const sectionLabel: React.CSSProperties = {
     fontFamily: "'Caveat', cursive",
     fontSize: 18,
-    fontWeight: 700,
+    fontWeight: 500,
     color: 'var(--text)',
     margin: '0 0 10px',
     display: 'block',
@@ -129,8 +129,9 @@ export default function Recommender() {
             flex: 1, background: tab === t ? 'var(--border)' : 'none',
             border: 'none', borderRadius: 7,
             color: tab === t ? '#fff' : 'var(--text-muted)',
-            fontSize: 13, fontWeight: tab === t ? 700 : 400,
+            fontSize: 13, fontWeight: 400,
             minHeight: 40, cursor: 'pointer',
+            textAlign: 'center',
           }}>
             {t === 'ask' ? 'Ask' : `Saved${savedRecs.length > 0 ? ` (${savedRecs.length})` : ''}`}
           </button>
@@ -241,9 +242,10 @@ export default function Recommender() {
                       borderRadius: 7,
                       color: active ? '#fff' : 'var(--text-muted)',
                       fontSize: 13,
-                      fontWeight: active ? 700 : 400,
+                      fontWeight: 400,
                       minHeight: 40,
                       cursor: 'pointer',
+                      textAlign: 'center',
                     }}
                   >
                     {label}
