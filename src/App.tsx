@@ -321,7 +321,7 @@ function Home() {
           {dark ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
         </button>
 
-        <DiamondSpinner size={22} />
+        <DiamondSpinner size={48} />
 
         <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
           v{__APP_VERSION__}
