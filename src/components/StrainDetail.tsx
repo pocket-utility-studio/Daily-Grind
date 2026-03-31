@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useStash, type StrainEntry } from '../context/StashContext'
+import { lookupStrainData } from '../services/ai'
 import PageHeader from './PageHeader'
 
 interface Props {
@@ -16,6 +18,29 @@ const TYPE_COLOR: Record<string, string> = {
 export default function StrainDetail({ strain, onClose }: Props) {
   const { updateStrain, deleteStrain } = useStash()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [enriching, setEnriching] = useState(false)
+  const [enriched, setEnriched] = useState(false)
+  const [enrichError, setEnrichError] = useState('')
+
+  async function handleEnrich() {
+    setEnriching(true)
+    setEnrichError('')
+    try {
+      const data = await lookupStrainData(strain.name)
+      const updates: Partial<StrainEntry> = {}
+      if (data.thc != null   && strain.thc      == null) updates.thc      = data.thc
+      if (data.cbd != null   && strain.cbd      == null) updates.cbd      = data.cbd
+      if (data.type          && !strain.type)            updates.type      = data.type
+      if (data.terpenes      && !strain.terpenes)        updates.terpenes  = data.terpenes
+      if (data.effects       && !strain.effects)         updates.effects   = data.effects
+      if (Object.keys(updates).length > 0) updateStrain(strain.id, updates)
+      setEnriched(true)
+    } catch {
+      setEnrichError('Lookup failed. Check your API key in Settings.')
+    } finally {
+      setEnriching(false)
+    }
+  }
 
   function handleDelete() {
     deleteStrain(strain.id)
@@ -127,6 +152,35 @@ export default function StrainDetail({ strain, onClose }: Props) {
           </button>
         </div>
       </div>
+
+      {/* AI enrich */}
+      {enrichError && (
+        <p style={{ fontSize: 12, color: '#e05555', margin: '0 0 10px' }}>{enrichError}</p>
+      )}
+      <button
+        onClick={handleEnrich}
+        disabled={enriching || enriched}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          background: enriched ? 'var(--accent-dim)' : 'var(--surface)',
+          border: `2px solid ${enriched ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: 10,
+          boxShadow: enriched ? 'none' : 'var(--shadow-sm)',
+          color: enriched ? 'var(--accent)' : 'var(--text)',
+          fontSize: 14,
+          fontWeight: 600,
+          minHeight: 48,
+          cursor: enriching || enriched ? 'default' : 'pointer',
+          marginBottom: 12,
+        }}
+      >
+        <Sparkles size={15} strokeWidth={2} />
+        {enriching ? 'Looking up…' : enriched ? 'Info filled in ✓' : 'Fill missing info with AI'}
+      </button>
 
       {/* Notes */}
       {strain.notes && (
