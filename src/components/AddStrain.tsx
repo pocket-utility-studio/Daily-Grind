@@ -40,6 +40,7 @@ export default function AddStrain({ onClose }: Props) {
   const [lookingUp, setLookingUp] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanDone, setScanDone] = useState(false)
+  const [scanEnriched, setScanEnriched] = useState(false)
   const [error, setError] = useState('')
 
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -130,6 +131,19 @@ export default function AddStrain({ onClose }: Props) {
         if (data.type)        setType(data.type)
         if (data.amount)      setAmount(data.amount)
         setScanDone(true)
+
+        // AI enrichment for any fields the scan didn't fill
+        if (data.name) {
+          try {
+            const ai = await lookupStrainData(data.name)
+            if (ai.thc != null  && data.thc == null) setThc(String(ai.thc))
+            if (ai.cbd != null  && data.cbd == null) setCbd(String(ai.cbd))
+            if (ai.type         && !data.type)       setType(ai.type)
+            if (ai.terpenes)                         setTerpenes(ai.terpenes)
+            if (ai.effects)                          setEffects(ai.effects)
+            setScanEnriched(true)
+          } catch { /* enrichment is best-effort, ignore failures */ }
+        }
       } catch {
         setError('Could not read the label. Try a clearer photo or enter details manually.')
         setImageDataUrl(undefined)
@@ -144,6 +158,7 @@ export default function AddStrain({ onClose }: Props) {
   function clearImage() {
     setImageDataUrl(undefined)
     setScanDone(false)
+    setScanEnriched(false)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -238,7 +253,9 @@ export default function AddStrain({ onClose }: Props) {
               padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5,
             }}>
               <Check size={12} strokeWidth={3} color="#fff" />
-              <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Filled from label</span>
+              <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
+                {scanEnriched ? 'Label + AI filled' : 'Filled from label'}
+              </span>
             </div>
           )}
           <button
