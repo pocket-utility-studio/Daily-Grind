@@ -111,7 +111,7 @@ function Home() {
 
   // Card descriptors
   const stashDesc = inStockCount === 0
-    ? 'Nothing in the stash yet'
+    ? '4,300+ strains in the offline database'
     : `${inStockCount} strain${inStockCount !== 1 ? 's' : ''}${totalWeight > 0 ? ` · ${totalWeight}g` : ''}${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
 
   const allCards = [

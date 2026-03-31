@@ -1,11 +1,24 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, Plus, Check } from 'lucide-react'
 import { useStash } from '../context/StashContext'
 import { lookupStrainData, type StrainLookupResult } from '../services/ai'
 import PageHeader from './PageHeader'
+import DiamondSpinner from './DiamondSpinner'
 
 interface Props {
   onClose: () => void
+}
+
+interface StrainRecord {
+  Strain: string
+  Type?: string
+  Effects?: string
+  Flavor?: string
+  Description?: string
+  terpenes?: string
+  thc?: number
+  cbd?: number
+  medical?: string
 }
 
 const TYPE_COLOR: Record<string, string> = {
@@ -14,15 +27,117 @@ const TYPE_COLOR: Record<string, string> = {
   hybrid: '#c08030',
 }
 
+let _db: StrainRecord[] | null = null
+async function fetchDb(): Promise<StrainRecord[]> {
+  if (_db) return _db
+  try { _db = await fetch('/Medcantools/strains.json').then(r => r.json()) } catch { _db = [] }
+  return _db!
+}
+
+function normalise(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function dbToResult(r: StrainRecord): StrainLookupResult & { name: string } {
+  const t = r.Type?.toLowerCase()
+  return {
+    name: r.Strain,
+    thc: typeof r.thc === 'number' ? r.thc : undefined,
+    cbd: typeof r.cbd === 'number' ? r.cbd : undefined,
+    type: t === 'sativa' || t === 'indica' || t === 'hybrid' ? t : undefined,
+    terpenes: r.terpenes || undefined,
+    effects: r.Effects || undefined,
+    history: r.Description ? r.Description.slice(0, 300) : undefined,
+  }
+}
+
 export default function StrainSearch({ onClose }: Props) {
   const { addStrain, strains } = useStash()
   const inputRef = useRef<HTMLInputElement>(null)
+  const suggestRef = useRef<HTMLDivElement>(null)
 
   const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<(StrainLookupResult & { name: string }) | null>(null)
+  const [source, setSource] = useState<'offline' | 'ai' | null>(null)
   const [added, setAdded] = useState(false)
   const [error, setError] = useState('')
+
+  // Live suggestions from offline DB as user types
+  useEffect(() => {
+    if (query.length < 2) { setSuggestions([]); return }
+    let cancelled = false
+    fetchDb().then(db => {
+      if (cancelled) return
+      const q = normalise(query)
+      const starts: string[] = []
+      const contains: string[] = []
+      for (const r of db) {
+        const n = r.Strain
+        const nl = normalise(n)
+        if (nl.startsWith(q)) starts.push(n)
+        else if (nl.includes(q)) contains.push(n)
+        if (starts.length >= 6 && contains.length >= 4) break
+      }
+      setSuggestions([...starts, ...contains].slice(0, 10))
+    })
+    return () => { cancelled = true }
+  }, [query])
+
+  // Close suggestions on outside tap
+  useEffect(() => {
+    function onTap(e: MouseEvent | TouchEvent) {
+      if (suggestRef.current && !suggestRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', onTap)
+    document.addEventListener('touchstart', onTap)
+    return () => {
+      document.removeEventListener('mousedown', onTap)
+      document.removeEventListener('touchstart', onTap)
+    }
+  }, [])
+
+  async function selectSuggestion(name: string) {
+    setQuery(name)
+    setSuggestions([])
+    setShowSuggestions(false)
+    setAdded(false)
+    setError('')
+    setLoading(true)
+    try {
+      const db = await fetchDb()
+      const match = db.find(r => normalise(r.Strain) === normalise(name))
+      if (match) {
+        setResult(dbToResult(match))
+        setSource('offline')
+      } else {
+        await lookupAI(name)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function lookupAI(name: string) {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await lookupStrainData(name)
+      setResult({ ...data, name })
+      setSource('ai')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : ''
+      setError(msg === 'NO_KEY'
+        ? 'Add your Gemini API key in Settings to look up strains not in the offline database.'
+        : 'Search failed. Check your connection and API key.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleSearch() {
     const name = query.trim()
@@ -32,12 +147,16 @@ export default function StrainSearch({ onClose }: Props) {
     setAdded(false)
     setError('')
     try {
-      const data = await lookupStrainData(name)
-      setResult({ ...data, name })
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : ''
-      setError(msg === 'NO_KEY' ? 'Add your Gemini API key in Settings first.' : 'Search failed. Check your connection and API key.')
-    } finally {
+      const db = await fetchDb()
+      const match = db.find(r => normalise(r.Strain) === normalise(name))
+      if (match) {
+        setResult(dbToResult(match))
+        setSource('offline')
+        setLoading(false)
+      } else {
+        await lookupAI(name)
+      }
+    } catch {
       setLoading(false)
     }
   }
@@ -75,53 +194,94 @@ export default function StrainSearch({ onClose }: Props) {
       <PageHeader title="Strain Search" onBack={onClose} />
 
       <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
-        Type a strain name — AI will look up its profile so you can add it to your stash.
+        Search 4,300+ strains offline. AI enrichment available with an API key.
       </p>
 
-      {/* Search input */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={15} strokeWidth={2} style={{
-            position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--text-muted)', pointerEvents: 'none',
-          }} />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setResult(null); setAdded(false); setError('') }}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="e.g. Blue Dream, OG Kush…"
+      {/* Search input + suggestions */}
+      <div ref={suggestRef} style={{ position: 'relative', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={15} strokeWidth={2} style={{
+              position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--text-muted)', pointerEvents: 'none',
+            }} />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setResult(null)
+                setAdded(false)
+                setError('')
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="e.g. Blue Dream, OG Kush…"
+              style={{
+                width: '100%',
+                background: 'var(--surface)',
+                border: '2px solid var(--border)',
+                borderRadius: 10,
+                color: 'var(--text)',
+                fontSize: 15,
+                padding: '13px 14px 13px 36px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={loading || !query.trim()}
             style={{
-              width: '100%',
-              background: 'var(--surface)',
-              border: '2px solid var(--border)',
+              background: query.trim() && !loading ? 'var(--accent)' : 'var(--border)',
+              border: 'none',
               borderRadius: 10,
-              color: 'var(--text)',
-              fontSize: 15,
-              padding: '13px 14px 13px 36px',
-              outline: 'none',
-              boxSizing: 'border-box',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 600,
+              padding: '0 18px',
+              minHeight: 50,
+              cursor: query.trim() && !loading ? 'pointer' : 'default',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
+          >
+            {loading ? <DiamondSpinner size={22} /> : 'Search'}
+          </button>
         </div>
-        <button
-          onClick={handleSearch}
-          disabled={loading || !query.trim()}
-          style={{
-            background: query.trim() && !loading ? 'var(--accent)' : 'var(--border)',
-            border: 'none',
-            borderRadius: 10,
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 600,
-            padding: '0 18px',
-            minHeight: 50,
-            cursor: query.trim() && !loading ? 'pointer' : 'default',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {loading ? <SearchSpinner /> : 'Look up'}
-        </button>
+
+        {/* Suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, right: 0,
+            background: 'var(--surface)', border: '2px solid var(--accent)',
+            borderRadius: 10, boxShadow: 'var(--shadow)',
+            zIndex: 100, overflow: 'hidden', marginTop: 4,
+          }}>
+            {suggestions.map((s, i) => (
+              <button
+                key={s}
+                onMouseDown={e => { e.preventDefault(); selectSuggestion(s) }}
+                onTouchStart={e => { e.preventDefault(); selectSuggestion(s) }}
+                style={{
+                  width: '100%', textAlign: 'left',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none',
+                  color: 'var(--text)', fontSize: 14,
+                  padding: '12px 14px', cursor: 'pointer',
+                  minHeight: 44, display: 'block',
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Error */}
@@ -144,15 +304,23 @@ export default function StrainSearch({ onClose }: Props) {
           overflow: 'hidden',
           marginBottom: 16,
         }}>
-          {/* Name + type */}
+          {/* Name + type + source badge */}
           <div style={{ padding: '16px 16px 12px', borderBottom: '2px solid var(--border)' }}>
-            <h2 style={{
-              fontFamily: "'Caveat', cursive",
-              fontSize: 24, fontWeight: 700,
-              color: 'var(--text)', margin: '0 0 8px',
-            }}>
-              {result.name}
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h2 style={{
+                fontFamily: "'Caveat', cursive",
+                fontSize: 24, fontWeight: 700,
+                color: 'var(--text)', margin: 0,
+              }}>
+                {result.name}
+              </h2>
+              <span style={{
+                fontSize: 10, color: source === 'offline' ? 'var(--accent)' : 'var(--text-muted)',
+                fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}>
+                {source === 'offline' ? 'Offline' : 'AI'}
+              </span>
+            </div>
             {result.type && (
               <span style={{
                 display: 'inline-block',
@@ -195,18 +363,31 @@ export default function StrainSearch({ onClose }: Props) {
             )
           })}
 
-          {/* History */}
           {result.history && (
             <div style={{ padding: '13px 16px', borderTop: '1px solid var(--border)' }}>
               <p style={{
                 fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
                 color: 'var(--text-muted)', fontWeight: 600, margin: '0 0 6px',
-              }}>
-                Origin
-              </p>
+              }}>Origin</p>
               <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, margin: 0 }}>
                 {result.history}
               </p>
+            </div>
+          )}
+
+          {/* Enrich with AI if offline result */}
+          {source === 'offline' && (
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => lookupAI(result.name)}
+                disabled={loading}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--accent)',
+                  fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 600,
+                }}
+              >
+                Enrich with AI →
+              </button>
             </div>
           )}
         </div>
@@ -248,20 +429,6 @@ export default function StrainSearch({ onClose }: Props) {
           </button>
         )
       )}
-    </div>
-  )
-}
-
-function SearchSpinner() {
-  return (
-    <div style={{ width: 18, height: 18, margin: '0 auto' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{
-        width: 18, height: 18, borderRadius: '50%',
-        border: '2px solid rgba(255,255,255,0.3)',
-        borderTopColor: '#fff',
-        animation: 'spin 0.8s linear infinite',
-      }} />
     </div>
   )
 }
