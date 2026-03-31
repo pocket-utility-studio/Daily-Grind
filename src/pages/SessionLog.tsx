@@ -16,7 +16,7 @@ interface SessionEntry {
   notes?: string
 }
 
-const STORAGE_KEY = 'canopy_sessions'
+const STORAGE_KEY = 'dailygrind_sessions'
 const SYMPTOM_OPTS = ['Pain', 'Anxiety', 'Nausea', 'Depression', 'Fatigue', 'Insomnia', 'Stress', 'Focus', 'Mood', 'Appetite']
 const VAPE_TEMPS = [160, 170, 180, 190, 200, 210]
 

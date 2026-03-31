@@ -22,7 +22,8 @@ export interface StrainEntry {
   effects?: string
 }
 
-const STORAGE_KEY = 'canopy_stash'
+const STORAGE_KEY = 'dailygrind_stash'
+const LEGACY_KEY  = 'canopy_stash'
 
 const SEED_STRAINS: StrainEntry[] = [
   {
@@ -66,6 +67,16 @@ function loadStrains(): StrainEntry[] {
     if (raw) {
       const parsed = JSON.parse(raw) as StrainEntry[]
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+    // Migrate from old key
+    const legacy = localStorage.getItem(LEGACY_KEY)
+    if (legacy) {
+      const parsed = JSON.parse(legacy) as StrainEntry[]
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        localStorage.setItem(STORAGE_KEY, legacy)
+        localStorage.removeItem(LEGACY_KEY)
+        return parsed
+      }
     }
   } catch {
     // ignore

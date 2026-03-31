@@ -46,7 +46,7 @@ export default function Settings() {
       try {
         const data = JSON.parse(ev.target?.result as string)
         if (data.strains && Array.isArray(data.strains)) {
-          localStorage.setItem('canopy_stash', JSON.stringify(data.strains))
+          localStorage.setItem('dailygrind_stash', JSON.stringify(data.strains))
           setImportFb('loaded')
           setTimeout(() => window.location.reload(), 1000)
         } else {
@@ -60,7 +60,7 @@ export default function Settings() {
   }
 
   function clearData() {
-    localStorage.removeItem('canopy_stash')
+    localStorage.removeItem('dailygrind_stash')
     window.location.reload()
   }
 
