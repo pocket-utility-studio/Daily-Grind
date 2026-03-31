@@ -211,15 +211,15 @@ function Home() {
           const tilts = [-2.4, 1.6, -3.1, 2.8]
           const tilt = tilts[idx % tilts.length]
           return (
+            <div key={to} className="home-animate" style={{ transform: `rotate(${tilt}deg)` }}>
             <button
-              key={to}
               onClick={(e) => { fireRipple(e); navigate(to) }}
               onMouseDown={() => startLongPress(longPressAction)}
               onMouseUp={cancelLongPress}
               onMouseLeave={cancelLongPress}
               onTouchStart={() => { startLongPress(longPressAction) }}
               onTouchEnd={cancelLongPress}
-              className="hub-card ripple-container home-animate"
+              className="hub-card ripple-container"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -233,7 +233,6 @@ function Home() {
                 cursor: 'pointer',
                 minHeight: 'unset',
                 gap: 16,
-                transform: `rotate(${tilt}deg)`,
               }}
             >
               <div style={{
@@ -280,6 +279,7 @@ function Home() {
                 style={{ flexShrink: 0 }}
               />
             </button>
+            </div>
           )
         })}
       </div>
