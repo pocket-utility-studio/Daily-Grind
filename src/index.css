@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @layer base {
+  /* ── Light mode (default) ─────────────────────────────── */
   :root {
     --bg: #f2f0eb;
     --surface: #ffffff;
@@ -11,8 +12,38 @@
     --text: #111111;
     --text-muted: #666666;
     --text-dim: #bbbbbb;
-    --shadow: 3px 3px 0px #1a1a1a;
-    --shadow-sm: 2px 2px 0px #1a1a1a;
+    --shadow: 2px 2px 0px rgba(26,26,26,0.55);
+    --shadow-sm: 1px 1px 0px rgba(26,26,26,0.45);
+
+    /* Per-section icon accent colors */
+    --icon-stash:    #3b7651;
+    --icon-stash-bg: #e4f0e8;
+    --icon-ai:       #7060c0;
+    --icon-ai-bg:    #ede8f8;
+    --icon-notes:    #b06020;
+    --icon-notes-bg: #f5ead8;
+    --icon-guide:    #2070a0;
+    --icon-guide-bg: #ddeef8;
+  }
+
+  /* ── Dark mode ────────────────────────────────────────── */
+  [data-theme="dark"] {
+    --bg: #1a1a18;
+    --surface: #252520;
+    --border: #d4d0c8;
+    --accent: #5aaa78;
+    --accent-dim: #1e3328;
+    --accent-glow: rgba(90, 170, 120, 0.15);
+    --text: #eeeae0;
+    --text-muted: #a0a090;
+    --text-dim: #555550;
+    --shadow: 2px 2px 0px rgba(0,0,0,0.6);
+    --shadow-sm: 1px 1px 0px rgba(0,0,0,0.5);
+
+    --icon-stash-bg: #1e3328;
+    --icon-ai-bg:    #25203a;
+    --icon-notes-bg: #352510;
+    --icon-guide-bg: #10253a;
   }
 
   * {
@@ -29,13 +60,14 @@
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
+    transition: background 0.25s ease, color 0.25s ease;
   }
 
   button {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-    transition: opacity 0.1s ease, transform 0.1s ease;
+    transition: opacity 0.1s ease, transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
   }
 
   button:active {
@@ -57,19 +89,88 @@
     accent-color: var(--accent);
   }
 
-  /* Paper grain overlay */
+  /* ── Paper grain overlay ─────────────────────────────── */
   html::after {
     content: '';
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 9999;
-    opacity: 0.04;
+    opacity: 0.035;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Alternating card tilt */
+  /* ── Hub card tilts ──────────────────────────────────── */
   .hub-card:nth-child(odd)  { transform: rotate(-1deg); }
-  .hub-card:nth-child(even) { transform: rotate(1deg); }
-  .hub-card:active          { transform: translate(1px, 1px) rotate(0deg) !important; }
+  .hub-card:nth-child(even) { transform: rotate(1deg);  }
+  .hub-card:active          { transform: translate(1px, 1px) rotate(0deg) !important; opacity: 0.85; }
+
+  /* Hover/focus state — desktop only */
+  @media (hover: hover) {
+    .hub-card:hover {
+      background: var(--accent-dim) !important;
+      border-color: var(--accent) !important;
+      transform: rotate(0deg) translateY(-1px) !important;
+    }
+    .hub-card:hover .hub-chevron {
+      transform: translateX(3px);
+    }
+  }
+
+  .hub-chevron {
+    transition: transform 0.15s ease;
+  }
+
+  /* ── Home screen fade-in ─────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+
+  .home-animate {
+    animation: fadeUp 0.35s ease both;
+  }
+  .home-animate:nth-child(1) { animation-delay: 0.05s; }
+  .home-animate:nth-child(2) { animation-delay: 0.10s; }
+  .home-animate:nth-child(3) { animation-delay: 0.15s; }
+  .home-animate:nth-child(4) { animation-delay: 0.20s; }
+
+  /* ── Ripple ──────────────────────────────────────────── */
+  .ripple-container {
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes ripple {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  .ripple-wave {
+    position: absolute;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    background: rgba(59, 118, 81, 0.2);
+    transform: scale(0);
+    animation: ripple 0.5s ease-out forwards;
+    pointer-events: none;
+    margin-left: -20px;
+    margin-top: -20px;
+  }
+
+  /* ── Landscape mode ──────────────────────────────────── */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .hub-cards-container {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px !important;
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+
+    .hub-card:nth-child(odd),
+    .hub-card:nth-child(even) {
+      transform: none;
+    }
+  }
 }

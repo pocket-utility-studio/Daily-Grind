@@ -57,6 +57,7 @@ export default function Recommender() {
 
   async function handleAsk() {
     if (!query || inStock.length === 0) return
+    localStorage.setItem('dg_last_query', selected.length > 0 ? selected.join(', ') : freeText.trim())
     setStatus('loading')
     setResponse('')
     setErrorMsg('')

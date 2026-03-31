@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { useStash, type StrainEntry } from '../context/StashContext'
 import AddStrain from '../components/AddStrain'
@@ -9,10 +9,15 @@ import PageHeader from '../components/PageHeader'
 
 export default function Journal() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { strains, loading } = useStash()
   const [adding, setAdding] = useState(false)
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<StrainEntry | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get('add') === '1') setAdding(true)
+  }, [])
 
   if (loading) return <p style={{ color: 'var(--text-muted)', fontSize: 14, padding: 16 }}>Loading...</p>
 
