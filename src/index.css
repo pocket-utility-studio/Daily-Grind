@@ -147,6 +147,14 @@
     to { transform: scale(4); opacity: 0; }
   }
 
+  @keyframes dg-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .dg-diamond-spin {
+    animation: dg-spin 1.4s linear infinite;
+  }
+
   .ripple-wave {
     position: absolute;
     border-radius: 50%;

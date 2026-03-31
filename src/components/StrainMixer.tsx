@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Shuffle } from 'lucide-react'
 import { generateFourBlends, type FourBlendResult, type EnrichedStrain } from '../services/ai'
 import type { StrainEntry } from '../context/StashContext'
+import DiamondSpinner from './DiamondSpinner'
 
 const BLEND_CONFIG: Record<keyof FourBlendResult, { label: string; color: string; emoji: string }> = {
   taste:    { label: 'Taste',    color: '#b06020', emoji: '★' },
@@ -66,7 +67,7 @@ export default function StrainMixer({ strains }: { strains: StrainEntry[] }) {
           marginBottom: error || result ? 14 : 0,
         }}
       >
-        <Shuffle size={15} strokeWidth={2.5} />
+        {loading ? <DiamondSpinner size={20} /> : <Shuffle size={15} strokeWidth={2.5} />}
         {loading ? 'Asking the Cyber-Botanist…' : 'Get blend suggestions'}
       </button>
 

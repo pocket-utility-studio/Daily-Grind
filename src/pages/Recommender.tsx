@@ -4,6 +4,7 @@ import { Leaf, Thermometer, BookOpen, Eye, Sparkles, Bookmark, BookmarkCheck, Tr
 import { useStash } from '../context/StashContext'
 import { getRecommendation, type EnrichedStrain } from '../services/ai'
 import PageHeader from '../components/PageHeader'
+import DiamondSpinner from '../components/DiamondSpinner'
 
 const EFFECT_TAGS = [
   'Sleep', 'Focus', 'Energy', 'Creative',
@@ -300,7 +301,7 @@ export default function Recommender() {
               gap: 10,
             }}
           >
-            {status === 'loading' ? <LoadingDots /> : (
+            {status === 'loading' ? <DiamondSpinner size={22} /> : (
               <>
                 <Sparkles size={16} strokeWidth={2} />
                 Get recommendation
@@ -353,25 +354,6 @@ export default function Recommender() {
   )
 }
 
-function LoadingDots() {
-  return (
-    <span style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-      <style>{`
-        @keyframes canopy-dot {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
-          40% { transform: translateY(-5px); opacity: 1; }
-        }
-      `}</style>
-      {[0, 1, 2].map((i) => (
-        <span key={i} style={{
-          display: 'inline-block', width: 6, height: 6,
-          borderRadius: '50%', background: '#fff',
-          animation: `canopy-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
-        }} />
-      ))}
-    </span>
-  )
-}
 
 const SECTIONS = ['RECOMMENDATION', 'TERPENES', 'TEMPERATURE', 'HISTORY', 'EXPECT'] as const
 

@@ -3,6 +3,7 @@ import { Camera, Search, Check, X } from 'lucide-react'
 import { useStash } from '../context/StashContext'
 import { lookupStrainData, parseStrainFromImage } from '../services/ai'
 import PageHeader from './PageHeader'
+import DiamondSpinner from './DiamondSpinner'
 
 interface Props {
   onClose: () => void
@@ -218,7 +219,7 @@ export default function AddStrain({ onClose }: Props) {
           }}
         >
           {scanning ? (
-            <><ScanSpinner /><span style={{ fontSize: 13 }}>Reading label…</span></>
+            <><DiamondSpinner size={36} /><span style={{ fontSize: 13 }}>Reading label…</span></>
           ) : (
             <>
               <Camera size={28} strokeWidth={1.5} />
@@ -422,15 +423,3 @@ export default function AddStrain({ onClose }: Props) {
   )
 }
 
-function ScanSpinner() {
-  return (
-    <div style={{ position: 'relative', width: 32, height: 32 }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{
-        width: 32, height: 32, borderRadius: '50%',
-        border: '2px solid var(--border)', borderTopColor: 'var(--accent)',
-        animation: 'spin 0.8s linear infinite',
-      }} />
-    </div>
-  )
-}
