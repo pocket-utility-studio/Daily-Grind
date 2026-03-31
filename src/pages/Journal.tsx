@@ -7,6 +7,7 @@ import StrainDetail from '../components/StrainDetail'
 import StrainSearch from '../components/StrainSearch'
 import PageHeader from '../components/PageHeader'
 import BudSprite from '../components/BudSprite'
+import StrainMixer from '../components/StrainMixer'
 
 export default function Journal() {
   const navigate = useNavigate()
@@ -103,6 +104,8 @@ export default function Journal() {
           </div>
         </section>
       )}
+
+      <StrainMixer strains={strains} />
     </div>
   )
 }
