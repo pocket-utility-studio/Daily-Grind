@@ -212,7 +212,7 @@ function Home() {
               onMouseDown={() => startLongPress(longPressAction)}
               onMouseUp={cancelLongPress}
               onMouseLeave={cancelLongPress}
-              onTouchStart={(e) => { startLongPress(longPressAction) }}
+              onTouchStart={() => { startLongPress(longPressAction) }}
               onTouchEnd={cancelLongPress}
               className="hub-card ripple-container home-animate"
               style={{

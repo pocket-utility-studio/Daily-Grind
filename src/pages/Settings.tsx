@@ -48,7 +48,7 @@ export default function Settings() {
   function exportCSV() {
     const headers = ['name','type','thc','cbd','amount','terpenes','effects','notes','inStock','dateAdded']
     const rows = strains.map(s => headers.map(h => {
-      const v = (s as Record<string, unknown>)[h]
+      const v = (s as unknown as Record<string, unknown>)[h]
       if (v == null) return ''
       const str = String(v)
       return str.includes(',') || str.includes('"') || str.includes('\n')
