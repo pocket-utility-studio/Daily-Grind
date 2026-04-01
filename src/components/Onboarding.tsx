@@ -3,7 +3,7 @@ import { BookOpen, Sparkles, ClipboardList, Compass, X } from 'lucide-react'
 
 const STEPS = [
   {
-    icon: '🌿',
+    icon: 'bag',
     title: 'Welcome to Daily Grind',
     body: 'Your minimalist cannabis companion. Track strains, log sessions, and get AI-powered recommendations — all stored privately on your device.',
   },
@@ -94,7 +94,7 @@ export default function Onboarding({ onDone }: Props) {
               <s.Icon size={26} color={s.color} strokeWidth={2} />
             </div>
           ) : (
-            <div style={{ fontSize: 40, lineHeight: 1 }}>{(s as { icon: string }).icon}</div>
+            <img src="/Medcantools/icon.png" alt="" style={{ width: 72, height: 72, objectFit: 'contain' }} />
           )}
         </div>
 
@@ -140,6 +140,7 @@ export default function Onboarding({ onDone }: Props) {
             fontSize: 15, fontWeight: 700,
             minHeight: 50,
             cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           {isLast ? "Let's go" : 'Next'}
