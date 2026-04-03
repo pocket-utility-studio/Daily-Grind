@@ -28,7 +28,7 @@ const FLASH = 'gemini-2.5-flash'
 
 async function tryProThenFlash<T>(
   client: GoogleGenerativeAI,
-  config: Parameters<GoogleGenerativeAI['getGenerativeModel']>[0],
+  config: Omit<Parameters<GoogleGenerativeAI['getGenerativeModel']>[0], 'model'>,
   fn: (model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>) => Promise<T>,
 ): Promise<{ result: T; modelUsed: string }> {
   try {
