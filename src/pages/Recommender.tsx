@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Leaf, Thermometer, BookOpen, Eye, Sparkles, Bookmark, BookmarkCheck, Trash2 } from 'lucide-react'
 import { useStash } from '../context/StashContext'
-import { getRecommendation, type EnrichedStrain } from '../services/ai'
+import { getRecommendation, getRecommendationFromClaude, judgeRecommendations, type EnrichedStrain } from '../services/ai'
 import PageHeader from '../components/PageHeader'
 import DiamondSpinner from '../components/DiamondSpinner'
 
@@ -48,6 +48,14 @@ export default function Recommender() {
   const [status, setStatus] = useState<Status>('idle')
   const [response, setResponse] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [claudeResponse, setClaudeResponse] = useState('')
+  const [claudeStatus, setClaudeStatus] = useState<Status>('idle')
+  const [verdictResponse, setVerdictResponse] = useState('')
+  const [verdictStatus, setVerdictStatus] = useState<Status>('idle')
+  const [verdictModel, setVerdictModel] = useState('')
+  const [geminiRecModel, setGeminiRecModel] = useState('')
+  const [activeModel, setActiveModel] = useState<'gemini' | 'claude' | 'verdict'>('gemini')
+  const hasClaudeKey = !!localStorage.getItem('claude_api_key')
   const [saved, setSaved] = useState<boolean>(false)
   const [savedRecs, setSavedRecs] = useState<Array<{ query: string; text: string; date: string }>>(() => {
     try { return JSON.parse(localStorage.getItem('dg_saved_recs') || '[]') } catch { return [] }
@@ -83,18 +91,25 @@ export default function Recommender() {
     setStatus('loading')
     setResponse('')
     setErrorMsg('')
+    setClaudeResponse('')
+    setClaudeStatus('idle')
+    setVerdictResponse('')
+    setVerdictStatus('idle')
+    setVerdictModel('')
+    setGeminiRecModel('')
+    setActiveModel('gemini')
 
     const party: EnrichedStrain[] = inStock.map((s) => ({
       name: s.name, type: s.type, thc: s.thc, cbd: s.cbd,
       terpenes: s.terpenes, effects: s.effects, notes: s.notes,
     }))
 
-    try {
-      await getRecommendation(query, party, timeOfDay, severity, undefined, undefined, (chunk) => {
-        setResponse(chunk)
-        setStatus('done')
-      })
-    } catch (e: unknown) {
+    let geminiText = ''
+    const geminiPromise = getRecommendation(query, party, timeOfDay, severity, undefined, undefined, (chunk) => {
+      geminiText = chunk
+      setResponse(chunk)
+      setStatus('done')
+    }, (model) => setGeminiRecModel(model)).catch((e: unknown) => {
       const msg = e instanceof Error ? e.message : ''
       setErrorMsg(
         msg === 'NO_KEY'
@@ -102,6 +117,30 @@ export default function Recommender() {
           : 'Something went wrong. Try again.'
       )
       setStatus('error')
+    })
+
+    if (hasClaudeKey) {
+      setClaudeStatus('loading')
+      let claudeText = ''
+
+      const claudePromise = getRecommendationFromClaude(query, party, timeOfDay, severity).then((text) => {
+        claudeText = text
+        setClaudeResponse(text)
+        setClaudeStatus('done')
+      }).catch(() => {
+        setClaudeStatus('error')
+      })
+
+      await Promise.all([geminiPromise, claudePromise])
+
+      if (geminiText && claudeText) {
+        setVerdictStatus('loading')
+        judgeRecommendations(query, geminiText, claudeText)
+          .then(({ text, modelUsed }) => { setVerdictResponse(text); setVerdictModel(modelUsed); setVerdictStatus('done') })
+          .catch(() => setVerdictStatus('error'))
+      }
+    } else {
+      await geminiPromise
     }
   }
 
@@ -328,7 +367,68 @@ export default function Recommender() {
           {/* Response */}
           {(status === 'done' || status === 'loading') && response && (
             <>
-              <ResponseDisplay text={response} />
+              {hasClaudeKey && (
+                <div style={{
+                  display: 'flex', background: 'var(--surface)',
+                  border: '2px solid var(--border)', borderRadius: 10,
+                  padding: 3, gap: 3, marginBottom: 14,
+                }}>
+                  {(['gemini', 'claude', 'verdict'] as const).map(m => (
+                    <button key={m} onClick={() => setActiveModel(m)} style={{
+                      flex: 1,
+                      background: activeModel === m ? 'var(--border)' : 'none',
+                      border: 'none', borderRadius: 7,
+                      color: activeModel === m ? '#fff' : 'var(--text-muted)',
+                      fontSize: 13, fontWeight: 400,
+                      minHeight: 40, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}>
+                      {m === 'gemini' ? 'Gemini' : m === 'claude' ? 'Claude' : 'Verdict'}
+                      {m === 'claude' && claudeStatus === 'loading' && <DiamondSpinner size={28} />}
+                      {m === 'verdict' && verdictStatus === 'loading' && <DiamondSpinner size={28} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeModel === 'gemini' && (
+                <>
+                  <ResponseDisplay text={response} />
+                  {geminiRecModel && (
+                    <p style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'right', margin: '6px 0 0', letterSpacing: '0.04em' }}>
+                      {geminiRecModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash (Pro unavailable)'}
+                    </p>
+                  )}
+                </>
+              )}
+              {activeModel === 'claude' && claudeStatus === 'done' && <ResponseDisplay text={claudeResponse} />}
+              {activeModel === 'claude' && claudeStatus === 'loading' && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+                  <DiamondSpinner size={56} />
+                </div>
+              )}
+              {activeModel === 'claude' && claudeStatus === 'error' && (
+                <p style={{ fontSize: 13, color: '#e05555', textAlign: 'center' }}>Claude response failed. Check your API key in Settings.</p>
+              )}
+              {activeModel === 'verdict' && verdictStatus === 'done' && (
+                <>
+                  <ResponseDisplay text={verdictResponse} />
+                  {verdictModel && (
+                    <p style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'right', margin: '6px 0 0', letterSpacing: '0.04em' }}>
+                      {verdictModel === 'gemini-2.5-pro' ? 'Verdict by Gemini 2.5 Pro' : 'Verdict by Gemini 2.5 Flash (Pro unavailable)'}
+                    </p>
+                  )}
+                </>
+              )}
+              {activeModel === 'verdict' && verdictStatus === 'loading' && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+                  <DiamondSpinner size={56} />
+                </div>
+              )}
+              {activeModel === 'verdict' && verdictStatus === 'error' && (
+                <p style={{ fontSize: 13, color: '#e05555', textAlign: 'center' }}>Verdict failed. Check your Gemini API key.</p>
+              )}
+
               {status === 'done' && (
                 <button
                   onClick={saveRec}

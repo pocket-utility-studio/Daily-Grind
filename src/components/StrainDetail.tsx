@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Sparkles, ClipboardList, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStash, type StrainEntry } from '../context/StashContext'
-import { lookupStrainData } from '../services/ai'
+import { lookupStrainData, crossCheckStrainWithClaude, judgeStrainData, type CrossCheckResult, type StrainJudgment } from '../services/ai'
+import legendaryStrains from '../data/legendaryStrains'
 import DiamondSpinner from './DiamondSpinner'
 import PageHeader from './PageHeader'
 
@@ -34,6 +35,12 @@ export default function StrainDetail({ strain, onClose }: Props) {
   const [enriching, setEnriching] = useState(false)
   const [enriched, setEnriched] = useState(false)
   const [enrichError, setEnrichError] = useState('')
+  const [enrichModel, setEnrichModel] = useState('')
+
+  const [checkResult, setCheckResult] = useState<CrossCheckResult | null>(null)
+  const [checkError, setCheckError] = useState('')
+  const [judgment, setJudgment] = useState<StrainJudgment | null>(null)
+  const hasClaudeKey = !!localStorage.getItem('claude_api_key')
 
   // Edit mode
   const [editing, setEditing] = useState(false)
@@ -76,21 +83,47 @@ export default function StrainDetail({ strain, onClose }: Props) {
   async function handleEnrich() {
     setEnriching(true)
     setEnrichError('')
-    try {
-      const data = await lookupStrainData(strain.name)
+    setEnrichModel('')
+    setCheckResult(null)
+    setCheckError('')
+    setJudgment(null)
+
+    const [geminiResult, claudeResult] = await Promise.allSettled([
+      lookupStrainData(strain.name),
+      hasClaudeKey ? crossCheckStrainWithClaude(strain.name) : Promise.reject(new Error('no key')),
+    ])
+
+    let geminiData: Awaited<ReturnType<typeof lookupStrainData>> | null = null
+
+    if (geminiResult.status === 'fulfilled') {
+      geminiData = geminiResult.value
+      if (geminiResult.value.modelUsed) setEnrichModel(geminiResult.value.modelUsed)
+      const data = geminiResult.value
       const updates: Partial<StrainEntry> = {}
       if (data.thc != null   && strain.thc      == null) updates.thc      = data.thc
       if (data.cbd != null   && strain.cbd      == null) updates.cbd      = data.cbd
       if (data.type          && !strain.type)            updates.type      = data.type
       if (data.terpenes      && !strain.terpenes)        updates.terpenes  = data.terpenes
       if (data.effects       && !strain.effects)         updates.effects   = data.effects
+      if (data.history       && !strain.history)         updates.history   = data.history
       if (Object.keys(updates).length > 0) updateStrain(strain.id, updates)
       setEnriched(true)
-    } catch {
-      setEnrichError('Lookup failed. Check your API key in Settings.')
-    } finally {
-      setEnriching(false)
+    } else {
+      setEnrichError('Lookup failed. Check your Gemini API key in Settings.')
     }
+
+    if (claudeResult.status === 'fulfilled') {
+      setCheckResult(claudeResult.value)
+      if (geminiData) {
+        judgeStrainData(strain.name, geminiData, claudeResult.value)
+          .then(setJudgment)
+          .catch(() => {/* silent — judgment is bonus, not critical */})
+      }
+    } else if (hasClaudeKey) {
+      setCheckError('Claude cross-check failed. Check your Claude API key.')
+    }
+
+    setEnriching(false)
   }
 
   function handleDelete() {
@@ -103,6 +136,10 @@ export default function StrainDetail({ strain, onClose }: Props) {
   }
 
   const typeColor = strain.type ? TYPE_COLOR[strain.type] : 'var(--border)'
+  const legendaryMatch = legendaryStrains.find(
+    l => l.name.toLowerCase() === strain.name.toLowerCase()
+  )
+  const historyText = legendaryMatch?.lore ?? strain.history ?? null
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -294,7 +331,7 @@ export default function StrainDetail({ strain, onClose }: Props) {
               <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
                 {label}
               </span>
-              <span style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, textAlign: 'right', maxWidth: '60%' }}>
+              <span style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, textAlign: 'right', maxWidth: '60%', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                 {value}
               </span>
             </div>
@@ -379,6 +416,174 @@ export default function StrainDetail({ strain, onClose }: Props) {
         <Sparkles size={15} strokeWidth={2} />
         {enriching ? <DiamondSpinner size={40} /> : enriched ? 'Info filled in ✓' : 'Fill missing info with AI'}
       </button>
+      {enrichModel && (
+        <p style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'right', margin: '-8px 0 10px', letterSpacing: '0.04em' }}>
+          {enrichModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash (Pro unavailable)'}
+        </p>
+      )}
+
+      {/* Cross-check results */}
+      {checkError && (
+        <p style={{ fontSize: 12, color: '#e05555', margin: '0 0 10px' }}>{checkError}</p>
+      )}
+      {checkResult && (
+        <div style={{
+              background: 'var(--surface)',
+              border: '2px solid var(--border)',
+              borderRadius: 12,
+              boxShadow: 'var(--shadow-sm)',
+              marginBottom: 12,
+              overflow: 'hidden',
+            }}>
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+                  Claude vs Gemini
+                </span>
+              </div>
+              {([
+                {
+                  label: 'THC',
+                  gemini: strain.thc != null ? `${strain.thc}%` : null,
+                  claude: checkResult.thc != null ? `${checkResult.thc}%` : null,
+                  agree: strain.thc != null && checkResult.thc != null && Math.abs(strain.thc - checkResult.thc) <= 2,
+                },
+                {
+                  label: 'CBD',
+                  gemini: strain.cbd != null ? `${strain.cbd}%` : null,
+                  claude: checkResult.cbd != null ? `${checkResult.cbd}%` : null,
+                  agree: strain.cbd != null && checkResult.cbd != null && Math.abs(strain.cbd - checkResult.cbd) <= 0.5,
+                },
+                {
+                  label: 'Type',
+                  gemini: strain.type ?? null,
+                  claude: checkResult.type ?? null,
+                  agree: !!strain.type && strain.type === checkResult.type,
+                },
+              ] as { label: string; gemini: string | null; claude: string | null; agree: boolean }[])
+                .filter(r => r.gemini != null || r.claude != null)
+                .map((row, i, arr) => (
+                  <div key={row.label} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '56px 1fr 1fr',
+                    alignItems: 'center',
+                    padding: '10px 16px',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
+                    gap: 8,
+                  }}>
+                    <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {row.label}
+                    </span>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Gemini</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: row.agree ? '#6aaa40' : '#c08030' }}>
+                        {row.gemini ?? '—'}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>Claude</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: row.agree ? '#6aaa40' : '#c08030' }}>
+                        {row.claude ?? '—'}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              }
+              {checkResult.effects && (
+                <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+                    Claude — Effects
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                    {checkResult.effects}
+                  </p>
+                </div>
+              )}
+              {checkResult.history && !strain.history && (
+                <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+                    Claude — History
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                    {checkResult.history}
+                  </p>
+                </div>
+              )}
+        </div>
+      )}
+
+      {/* Verdict */}
+      {judgment && (
+        <div style={{
+          background: 'var(--surface)',
+          border: `2px solid ${judgment.confidence === 'high' ? '#6aaa40' : judgment.confidence === 'medium' ? '#c08030' : '#e05555'}`,
+          borderRadius: 12,
+          boxShadow: `var(--shadow-sm)`,
+          padding: 16,
+          marginBottom: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 16, fontWeight: 700, color: 'var(--text-muted)', margin: 0 }}>
+              {judgment.modelUsed === 'gemini-2.5-pro' ? 'Gemini Pro Verdict' : 'Gemini Flash Verdict'}
+            </p>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: judgment.confidence === 'high' ? '#6aaa40' : judgment.confidence === 'medium' ? '#c08030' : '#e05555',
+              border: `1.5px solid currentColor`, borderRadius: 4, padding: '2px 7px',
+            }}>
+              {judgment.confidence} confidence
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+            {judgment.thc != null && (
+              <div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginBottom: 2 }}>THC</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{judgment.thc}%</div>
+              </div>
+            )}
+            {judgment.cbd != null && (
+              <div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginBottom: 2 }}>CBD</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{judgment.cbd}%</div>
+              </div>
+            )}
+            {judgment.type && (
+              <div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginBottom: 2 }}>Type</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', textTransform: 'capitalize' }}>{judgment.type}</div>
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6, wordBreak: 'break-word' }}>
+            {judgment.notes}
+          </p>
+        </div>
+      )}
+
+      {/* History */}
+      {historyText && (
+        <div style={{
+          background: 'var(--surface)',
+          border: '2px solid var(--border)',
+          borderRadius: 12,
+          boxShadow: 'var(--shadow-sm)',
+          padding: 16,
+          marginBottom: 12,
+        }}>
+          <p style={{
+            fontFamily: "'Caveat', cursive",
+            fontSize: 16, fontWeight: 700,
+            color: 'var(--text-muted)', margin: '0 0 8px',
+          }}>Origin & History</p>
+          <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, margin: 0, wordBreak: 'break-word' }}>
+            {historyText}
+          </p>
+          {legendaryMatch && (
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', margin: '10px 0 0', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              {legendaryMatch.era}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Notes */}
       {strain.notes && (

@@ -14,12 +14,32 @@ export interface StrainLookupResult {
   terpenes?: string
   effects?: string
   history?: string
+  modelUsed?: string
 }
 
 function getClient(): GoogleGenerativeAI {
   const key = localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY
   if (!key) throw new Error('NO_KEY')
   return new GoogleGenerativeAI(key)
+}
+
+const PRO   = 'gemini-2.5-pro'
+const FLASH = 'gemini-2.5-flash'
+
+async function tryProThenFlash<T>(
+  client: GoogleGenerativeAI,
+  config: Parameters<GoogleGenerativeAI['getGenerativeModel']>[0],
+  fn: (model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>) => Promise<T>,
+): Promise<{ result: T; modelUsed: string }> {
+  try {
+    const model = client.getGenerativeModel({ ...config, model: PRO })
+    const result = await fn(model)
+    return { result, modelUsed: PRO }
+  } catch {
+    const model = client.getGenerativeModel({ ...config, model: FLASH })
+    const result = await fn(model)
+    return { result, modelUsed: FLASH }
+  }
 }
 
 // ── Strain recommender ─────────────────────────────────────────────────────────
@@ -65,24 +85,14 @@ export interface ConsultationFeedback {
   date: string
 }
 
-export async function getRecommendation(
+function buildRecommendationPrompt(
   desiredEffect: string,
   party: EnrichedStrain[],
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night',
   severity: 'low' | 'medium' | 'high',
   feedbackHistory?: ConsultationFeedback[],
   patientNotes?: string,
-  onChunk?: (chunk: string) => void,
-): Promise<string> {
-  if (party.length === 0) throw new Error('No strains in stash')
-
-  const client = getClient()
-  const model = client.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: RECOMMENDER_SYSTEM,
-    generationConfig: { temperature: 0.7 },
-  })
-
+): string {
   const partyList = party
     .map((s) => {
       let line = `- ${s.name} (${s.type ?? 'unknown type'}`
@@ -113,20 +123,89 @@ export async function getRecommendation(
     severity === 'high'   ? '\nSeverity: HIGH — all strength options are on the table, prioritise symptom relief.' :
     severity === 'medium' ? '\nSeverity: MEDIUM — consider all options but apply time-of-day judgement.' :
                             ''
-  const prompt = `Time of day: ${timeOfDay}${severityBlock}\n\nMy stash:\n${partyList}${notesBlock}${memoryBlock}\n\nWhat I want: ${desiredEffect}`
 
-  if (onChunk) {
-    const stream = await model.generateContentStream(prompt)
-    let full = ''
-    for await (const chunk of stream.stream) {
-      const text = chunk.text()
-      if (text) { full += text; onChunk(full) }
+  return `Time of day: ${timeOfDay}${severityBlock}\n\nMy stash:\n${partyList}${notesBlock}${memoryBlock}\n\nWhat I want: ${desiredEffect}`
+}
+
+export async function getRecommendation(
+  desiredEffect: string,
+  party: EnrichedStrain[],
+  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night',
+  severity: 'low' | 'medium' | 'high',
+  feedbackHistory?: ConsultationFeedback[],
+  patientNotes?: string,
+  onChunk?: (chunk: string) => void,
+  onModelUsed?: (model: string) => void,
+): Promise<string> {
+  if (party.length === 0) throw new Error('No strains in stash')
+
+  const client = getClient()
+  const config = { systemInstruction: RECOMMENDER_SYSTEM, generationConfig: { temperature: 0.7 } }
+  const prompt = buildRecommendationPrompt(desiredEffect, party, timeOfDay, severity, feedbackHistory, patientNotes)
+
+  async function runStream(modelName: string): Promise<string> {
+    const m = client.getGenerativeModel({ ...config, model: modelName })
+    if (onChunk) {
+      const stream = await m.generateContentStream(prompt)
+      let full = ''
+      for await (const chunk of stream.stream) {
+        const text = chunk.text()
+        if (text) { full += text; onChunk(full) }
+      }
+      return full.trim()
     }
-    return full.trim()
+    const result = await m.generateContent(prompt)
+    return result.response.text().trim()
   }
 
-  const result = await model.generateContent(prompt)
-  return result.response.text().trim()
+  try {
+    const text = await runStream(PRO)
+    onModelUsed?.(PRO)
+    return text
+  } catch {
+    // Clear any partial streamed content before retrying with Flash
+    onChunk?.('')
+    onModelUsed?.(FLASH)
+    return runStream(FLASH)
+  }
+}
+
+export async function getRecommendationFromClaude(
+  desiredEffect: string,
+  party: EnrichedStrain[],
+  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night',
+  severity: 'low' | 'medium' | 'high',
+  feedbackHistory?: ConsultationFeedback[],
+  patientNotes?: string,
+): Promise<string> {
+  const key = localStorage.getItem('claude_api_key')
+  if (!key) throw new Error('NO_CLAUDE_KEY')
+
+  const prompt = buildRecommendationPrompt(desiredEffect, party, timeOfDay, severity, feedbackHistory, patientNotes)
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: RECOMMENDER_SYSTEM,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Claude API error: ${res.status} ${err}`)
+  }
+
+  const data = await res.json()
+  return (data.content?.[0]?.text ?? '').trim()
 }
 
 // ── Blend suggestions ──────────────────────────────────────────────────────────
@@ -266,11 +345,10 @@ export async function lookupStrainData(name: string): Promise<StrainLookupResult
     throw new Error('NO_KEY')
   }
   const client = getClient()
-  const model = client.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+  const config = {
     systemInstruction: `You are a cannabis strain encyclopedia. Return accurate, well-researched data. Only state what is genuinely known — do not fabricate details.`,
     generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-  })
+  }
 
   const prompt = `Provide accurate data for the cannabis strain "${name}".
 Respond ONLY with a single valid JSON object. Use null for unknown fields except thc.
@@ -280,18 +358,157 @@ Respond ONLY with a single valid JSON object. Use null for unknown fields except
   "type": <"sativa"|"indica"|"hybrid"|null>,
   "terpenes": <"comma-separated dominant terpenes"|null>,
   "effects": <"short comma-separated list of effects"|null>,
-  "history": <"2-4 sentences covering origin, breeder, genetics"|null>
+  "history": <"5-8 sentences covering: geographic origin or region, the era or decade it emerged, breeder or collective who created it, parent genetics, what made it significant or novel, any awards or cultural impact, and how it influenced later breeding — only include what is genuinely documented"|null>
 }`
 
-  const result = await model.generateContent(prompt)
-  const data = JSON.parse(result.response.text())
-  const out: StrainLookupResult = {}
+  const { result: raw, modelUsed } = await tryProThenFlash(client, config, m => m.generateContent(prompt))
+  const data = JSON.parse(raw.response.text())
+  const out: StrainLookupResult = { modelUsed }
   out.thc = typeof data.thc === 'number' ? data.thc : 15
   if (typeof data.cbd === 'number') out.cbd = data.cbd
   if (data.type === 'sativa' || data.type === 'indica' || data.type === 'hybrid') out.type = data.type
   if (typeof data.terpenes === 'string' && data.terpenes) out.terpenes = data.terpenes
   if (typeof data.effects  === 'string' && data.effects)  out.effects  = data.effects
   if (typeof data.history  === 'string' && data.history)  out.history  = data.history
+  return out
+}
+
+// ── Gemini Pro judge ───────────────────────────────────────────────────────────
+
+export interface StrainJudgment {
+  thc?: number
+  cbd?: number
+  type?: 'sativa' | 'indica' | 'hybrid'
+  confidence: 'high' | 'medium' | 'low'
+  notes: string
+  modelUsed?: string
+}
+
+export async function judgeStrainData(
+  name: string,
+  gemini: StrainLookupResult,
+  claude: CrossCheckResult,
+): Promise<StrainJudgment> {
+  const client = getClient()
+  const judgeConfig = { generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } }
+
+  const prompt = `Two AI models have provided data for the cannabis strain "${name}". Compare their answers and give your best assessment.
+
+Gemini said:
+${JSON.stringify({ thc: gemini.thc, cbd: gemini.cbd, type: gemini.type, effects: gemini.effects }, null, 2)}
+
+Claude said:
+${JSON.stringify({ thc: claude.thc, cbd: claude.cbd, type: claude.type, effects: claude.effects }, null, 2)}
+
+Respond ONLY with valid JSON:
+{
+  "thc": <your best estimate of typical THC % as number>,
+  "cbd": <your best estimate of typical CBD % as number or null>,
+  "type": <"sativa"|"indica"|"hybrid" — your assessment>,
+  "confidence": <"high" if both models largely agree, "medium" if minor discrepancies, "low" if significant disagreement>,
+  "notes": <1-2 sentences: where do the models agree or disagree, and what does that tell us about data reliability for this strain>
+}`
+
+  const { result: raw, modelUsed } = await tryProThenFlash(client, judgeConfig, m => m.generateContent(prompt))
+  const data = JSON.parse(raw.response.text())
+
+  const out: StrainJudgment = {
+    modelUsed,
+    confidence: data.confidence === 'high' || data.confidence === 'medium' || data.confidence === 'low'
+      ? data.confidence : 'medium',
+    notes: typeof data.notes === 'string' ? data.notes : '',
+  }
+  if (typeof data.thc === 'number') out.thc = data.thc
+  if (typeof data.cbd === 'number') out.cbd = data.cbd
+  if (data.type === 'sativa' || data.type === 'indica' || data.type === 'hybrid') out.type = data.type
+  return out
+}
+
+export async function judgeRecommendations(
+  query: string,
+  geminiRec: string,
+  claudeRec: string,
+): Promise<{ text: string; modelUsed: string }> {
+  const client = getClient()
+  const judgeConfig = {
+    systemInstruction: `You are a senior cannabis advisor reviewing two independent recommendations. Synthesise them into a single, clear verdict. Use the same section headers as the original responses: RECOMMENDATION, TERPENES, TEMPERATURE, HISTORY, EXPECT. Be concise — one sentence per section. Where the two advisors agree, state that clearly. Where they disagree, explain why and give your own verdict.`,
+    generationConfig: { temperature: 0.3 },
+  }
+
+  const prompt = `The user asked for: "${query}"
+
+Gemini's recommendation:
+${geminiRec}
+
+Claude's recommendation:
+${claudeRec}
+
+Provide your synthesised verdict.`
+
+  const { result: raw, modelUsed } = await tryProThenFlash(client, judgeConfig, m => m.generateContent(prompt))
+  return { text: raw.response.text().trim(), modelUsed }
+}
+
+// ── Claude cross-check ─────────────────────────────────────────────────────────
+
+export interface CrossCheckResult {
+  thc?: number
+  cbd?: number
+  type?: 'sativa' | 'indica' | 'hybrid'
+  effects?: string
+  history?: string
+}
+
+export async function crossCheckStrainWithClaude(name: string): Promise<CrossCheckResult> {
+  const key = localStorage.getItem('claude_api_key')
+  if (!key) throw new Error('NO_CLAUDE_KEY')
+
+  const body = {
+    model: 'claude-sonnet-4-6',
+    max_tokens: 512,
+    system: 'You are a cannabis strain encyclopedia. Return only accurate, well-researched data. Do not fabricate details.',
+    messages: [{
+      role: 'user',
+      content: `Provide accurate data for the cannabis strain "${name}".
+Respond ONLY with a single valid JSON object. Use null for unknown fields except thc.
+{
+  "thc": <typical THC % as number — required>,
+  "cbd": <typical CBD % as number|null>,
+  "type": <"sativa"|"indica"|"hybrid"|null>,
+  "effects": <"short comma-separated list of effects"|null>,
+  "history": <"4-6 sentences covering origin, era, breeder, genetics, and significance — only documented facts"|null>
+}`,
+    }],
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Claude API error: ${res.status} ${err}`)
+  }
+
+  const data = await res.json()
+  const text = data.content?.[0]?.text ?? ''
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('Claude returned no JSON')
+  const parsed = JSON.parse(jsonMatch[0])
+
+  const out: CrossCheckResult = {}
+  if (typeof parsed.thc === 'number') out.thc = parsed.thc
+  if (typeof parsed.cbd === 'number') out.cbd = parsed.cbd
+  if (parsed.type === 'sativa' || parsed.type === 'indica' || parsed.type === 'hybrid') out.type = parsed.type
+  if (typeof parsed.effects === 'string' && parsed.effects) out.effects = parsed.effects
+  if (typeof parsed.history === 'string' && parsed.history) out.history = parsed.history
   return out
 }
 

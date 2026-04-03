@@ -74,7 +74,7 @@ function fireRipple(e: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElem
 
 function Home() {
   const navigate = useNavigate()
-  const { strains } = useStash()
+  const { strains, restoredFromBackup } = useStash()
   const [dark, toggleDark] = useDarkMode()
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('dg_onboarded'))
@@ -163,6 +163,24 @@ function Home() {
           localStorage.setItem('dg_onboarded', '1')
           setShowOnboarding(false)
         }} />
+      )}
+
+      {/* Restore banner */}
+      {restoredFromBackup !== undefined && (
+        <div style={{
+          background: '#7060c020',
+          border: '2px solid #7060c0',
+          borderRadius: 10,
+          margin: '16px 16px 0',
+          padding: '10px 14px',
+        }}>
+          <p style={{ fontSize: 13, color: '#9080d0', fontWeight: 600, margin: '0 0 2px' }}>
+            Data restored from auto-backup
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+            Your primary save was missing or corrupt. Data was recovered from a recent snapshot. Check Settings → Auto-backups to review.
+          </p>
+        </div>
       )}
 
       {/* Header */}
